@@ -226,25 +226,89 @@ def slang_examples():
 
 
 # ─── Перевод (опционально) ────────────────────────────────────────────────────
-_translator = None
+# Приоритет: argostranslate (офлайн, без лимитов) -> deep-translator (онлайн).
 _cache = {}
+_argos = None            # модуль argostranslate.translate, если готов
+_deep = None             # GoogleTranslator, если готов
+_translate_disabled = False
+_fail_count = 0
+
+
+def _init_argos():
+    """Готовит офлайн-движок argostranslate (ru->en). Возвращает True/False."""
+    global _argos
+    if _argos is not None:
+        return _argos is not False
+    try:
+        import argostranslate.package as pkg
+        import argostranslate.translate as tr
+        langs = {l.code for l in tr.get_installed_languages()}
+        if not ('ru' in langs and 'en' in langs):
+            pkg.update_package_index()
+            avail = pkg.get_available_packages()
+            p = next((x for x in avail if x.from_code == 'ru' and x.to_code == 'en'), None)
+            if p is None:
+                _argos = False
+                return False
+            pkg.install_from_path(p.download())
+        _argos = tr
+        print('[info] argostranslate готов (офлайн перевод ru->en)')
+        return True
+    except Exception as e:
+        print(f'[info] argostranslate недоступен ({e}); пробую онлайн-переводчик')
+        _argos = False
+        return False
+
+
+def _init_deep():
+    global _deep
+    if _deep is not None:
+        return _deep is not False
+    try:
+        from deep_translator import GoogleTranslator
+        _deep = GoogleTranslator(source='ru', target='en')
+        return True
+    except Exception:
+        _deep = False
+        return False
+
 
 def translate_en(text: str) -> str:
-    global _translator
-    if not text.strip():
-        return text
+    """Перевод ru->en. При устойчивых сбоях перевод отключается (вернёт None)."""
+    global _translate_disabled, _fail_count
+    if not text.strip() or _translate_disabled:
+        return None
     if text in _cache:
         return _cache[text]
-    try:
-        if _translator is None:
-            from deep_translator import GoogleTranslator
-            _translator = GoogleTranslator(source='ru', target='en')
-        out = _translator.translate(text[:4900])
-        _cache[text] = out
-        return out
-    except Exception as e:
-        print(f"[warn] перевод не удался: {e}")
-        return text
+
+    # 1) офлайн argostranslate
+    if _init_argos():
+        try:
+            out = _argos.translate(text, 'ru', 'en')
+            _cache[text] = out
+            return out
+        except Exception:
+            pass
+
+    # 2) онлайн deep-translator с повторами
+    if _init_deep():
+        import time
+        for attempt in range(3):
+            try:
+                out = _deep.translate(text[:4900])
+                _cache[text] = out
+                _fail_count = 0
+                return out
+            except Exception:
+                time.sleep(1.5 * (attempt + 1))
+
+    # сбой
+    _fail_count += 1
+    if _fail_count >= 5 and not _translate_disabled:
+        _translate_disabled = True
+        print('[warn] перевод недоступен — английские пары пропускаются, '
+              'датасет собирается только на русском.')
+    return None
 
 
 def main():
@@ -295,8 +359,9 @@ def main():
             # ── английские пары ──
             if args.translate:
                 concise_en = translate_en(concise)
-                for q in q_article_en(num):
-                    examples.append(make_example(q, concise_en))
+                if concise_en:
+                    for q in q_article_en(num):
+                        examples.append(make_example(q, concise_en))
 
     random.shuffle(examples)
 
