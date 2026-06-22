@@ -1,0 +1,15 @@
+# Артефакты обучения
+outputs/
+*.safetensors
+*.bin
+
+# Сгенерированные данные (можно перегенерировать из laws/)
+# раскомментируй, если не хочешь хранить датасет в git:
+# data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/

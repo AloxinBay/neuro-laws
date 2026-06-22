@@ -1,0 +1,6 @@
+# Базовые зависимости для парсинга/датасета (работают и локально)
+regex>=2024.0.0
+deep-translator>=1.11.4
+
+# Тяжёлые зависимости для обучения ставятся в Colab (см. notebooks/train_colab.ipynb)
+# transformers, peft, trl, bitsandbytes, accelerate, datasets, torch
