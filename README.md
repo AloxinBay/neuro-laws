@@ -69,6 +69,30 @@ python scripts/bot.py
    ollama run moonneuro
    ```
 
+## Вариант 3 — обучение прямо на своём ПК (без Colab)
+
+Подходит для модели 0.5B. На видеокарте NVIDIA — быстро, на CPU — медленно (часы).
+
+1. Установи зависимости (скрипт сам определит GPU/CPU и поставит нужный PyTorch):
+   ```
+   Setup_train.bat
+   ```
+2. Запусти обучение:
+   ```
+   Train.bat
+   ```
+   или с настройками:
+   ```bash
+   python scripts/train.py --epochs 2 --batch 4
+   ```
+3. Готовая модель появится в `outputs/merged`. Поговорить с ней:
+   ```bash
+   python scripts/inference.py --model outputs/merged
+   ```
+
+Параметры `train.py`: `--epochs`, `--batch`, `--seq`, `--lr`, `--model`, `--out`.
+Если данных ещё нет — скрипт сам распарсит законы и соберёт датасет.
+
 ## Как добавить законы или сленг
 - Законы: положи `.txt` в `laws/<сервер>/`, перезапусти `parse_laws.py` + `build_dataset.py`.
 - Сленг: в `scripts/build_dataset.py` добавь строку в словарь `SLANG`.
